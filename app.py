@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
-import openpyxl
 
 st.set_page_config(layout="wide", page_title="GGE Dashboard", page_icon="📊")
-st.title("📊 Dashboard de Anúncios GGE (v3.2 - Novo Formato ML)")
+st.title("📊 Dashboard de Anúncios GGE (v3.3)")
 
 def formatar_brl(valor):
     if pd.isna(valor):
@@ -15,18 +14,6 @@ def formatar_int_br(numero):
     if pd.isna(numero):
         return "0"
     return f"{int(numero):,}".replace(",", ".")
-
-@st.cache_data(ttl=3600)
-def fetch_data(engine):
-    try:
-        query = 'SELECT * FROM "Anuncios";'
-        df = pd.read_sql(query, engine)
-        df['preco_venda'] = pd.to_numeric(df['preco_venda'], errors='coerce').fillna(0)
-        df['quantidade_estoque'] = pd.to_numeric(df['quantidade_estoque'], errors='coerce').fillna(0)
-        return df
-    except Exception as e:
-        st.error(f"Erro ao buscar dados: {e}")
-        return pd.DataFrame()
 
 try:
     db_url = st.secrets["database_url"]
@@ -57,80 +44,4 @@ if uploaded_file is not None:
                 df_processado['titulo'] = df_upload['TITLE']
                 df_processado['preco_venda'] = df_upload['PRICE']
                 df_processado['status'] = df_upload['STATUS'].str.lower()
-                df_processado['tipo_anuncio'] = df_upload['LISTING_TYPE'].str.lower()
-                df_processado['custo_envio'] = df_upload['FEE_PER_SALE']
-                df_processado['quantidade_estoque'] = df_upload['QUANTITY']
-                df_processado['vendas_totais'] = 0
-                df_processado['data_criacao'] = pd.Timestamp.now()
-                df_processado['ultima_atualizacao'] = pd.Timestamp.now()
-                df_processado['score_descricao'] = 0
-                df_processado['score_ficha_tecnica'] = 0
-                df_processado['score_fotos'] = 0
-                df_processado['status_catalogo'] = 'Nao Aplicavel'
-                df_processado['flex_status'] = 'Nao Elegivel'
-                
-                df_processado.to_sql('Anuncios', engine, if_exists='replace', index=False)
-                st.cache_data.clear()
-            
-            st.sidebar.success("Sucesso! Dados enviados.")
-            st.experimental_rerun()
-
-    except Exception as e:
-        st.sidebar.error(f"Erro: {e}")
-
-df_master = fetch_data(engine)
-
-if df_master.empty:
-    st.warning("Banco vazio. Use o uploader para carregar dados.")
-else:
-    st.sidebar.header("Filtros")
-    sku_filter = st.sidebar.text_input("Buscar por SKU")
-    
-    status_options = ["Todos"] + sorted(df_master['status'].unique().tolist())
-    status_filter = st.sidebar.selectbox("Filtrar por Status", options=status_options)
-
-    tipo_options = ["Todos"] + sorted(df_master['tipo_anuncio'].unique().tolist())
-    tipo_filter = st.sidebar.selectbox("Filtrar por Tipo", options=tipo_options)
-
-    df_filtrado = df_master.copy()
-
-    if sku_filter:
-        df_filtrado = df_filtrado[df_filtrado['sku'].str.contains(sku_filter, case=False, na=False)]
-    if status_filter != "Todos":
-        df_filtrado = df_filtrado[df_filtrado['status'] == status_filter]
-    if tipo_filter != "Todos":
-        df_filtrado = df_filtrado[df_filtrado['tipo_anuncio'] == tipo_filter]
-
-    st.header("Indicadores Chave")
-    col1, col2, col3 = st.columns(3)
-
-    num_anuncios = len(df_filtrado)
-    valor_estoque = (df_filtrado['preco_venda'] * df_filtrado['quantidade_estoque']).sum()
-    qtd_itens = df_filtrado['quantidade_estoque'].sum()
-
-    with col1:
-        st.metric(label="Anuncios Exibidos", value=formatar_int_br(num_anuncios))
-    
-    with col2:
-        st.metric(label="Valor Total Estoque", value=formatar_brl(valor_estoque))
-
-    with col3:
-        st.metric(label="Quantidade Total", value=formatar_int_br(qtd_itens))
-
-    st.write("---")
-    st.header("Analises Visuais")
-    col_graf1, col_graf2 = st.columns(2)
-
-    with col_graf1:
-        st.subheader("Tipo de Anuncio")
-        df_tipo = df_filtrado['tipo_anuncio'].value_counts()
-        st.bar_chart(df_tipo)
-
-    with col_graf2:
-        st.subheader("Top 5 por Estoque")
-        df_top_estoque = df_filtrado.nlargest(5, 'quantidade_estoque')
-        st.bar_chart(df_top_estoque, x='sku', y='quantidade_estoque')
-
-    st.write("---") 
-    st.header("Visao Geral dos Anuncios")
-    st.dataframe(df_filtrado)
+                df_pro
