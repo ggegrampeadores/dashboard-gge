@@ -3,7 +3,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 st.set_page_config(layout="wide", page_title="GGE Dashboard", page_icon="📊")
-st.title("📊 Dashboard de Anúncios GGE (v3.3)")
+st.title("📊 Dashboard de Anúncios GGE (v3.4)")
 
 def formatar_brl(valor):
     if pd.isna(valor):
@@ -79,10 +79,12 @@ else:
     st.sidebar.header("Filtros")
     sku_filter = st.sidebar.text_input("Buscar por SKU")
     
-    status_options = ["Todos"] + sorted(df_master['status'].unique().tolist())
+    status_list = sorted(df_master['status'].dropna().unique().tolist())
+    status_options = ["Todos"] + status_list
     status_filter = st.sidebar.selectbox("Filtrar por Status", options=status_options)
 
-    tipo_options = ["Todos"] + sorted(df_master['tipo_anuncio'].unique().tolist())
+    tipo_list = sorted(df_master['tipo_anuncio'].dropna().unique().tolist())
+    tipo_options = ["Todos"] + tipo_list
     tipo_filter = st.sidebar.selectbox("Filtrar por Tipo", options=tipo_options)
 
     df_filtrado = df_master.copy()
