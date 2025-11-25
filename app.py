@@ -68,4 +68,19 @@ if not df_anuncios_master.empty:
         st.metric(label="Nº de Anúncios Exibidos", value=num_anuncios)
     
     with col2:
-        # Usa locale.currency() para fo
+        # Usa locale.currency() para formatar corretamente para R$
+        st.metric(label="Valor Total em Estoque", value=locale.currency(valor_estoque, grouping=True))
+
+    with col3:
+        # Usa locale.format_string() para formatar números inteiros
+        st.metric(label="Quantidade Total de Itens", value=locale.format_string("%d", int(qtd_itens), grouping=True))
+
+
+    # --- Exibição da Tabela de Dados ---
+    st.write("---") 
+    st.header("Visão Geral dos Anúncios")
+    st.dataframe(df_filtrado)
+
+else:
+    st.warning("Nenhum dado de anúncio foi encontrado na base de dados.")
+
