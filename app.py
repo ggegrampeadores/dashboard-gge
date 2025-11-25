@@ -1,10 +1,19 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
+import locale # Importa a biblioteca de localização
 
-# --- Configurações da Página ---
+# --- Configurações da Página e Localização ---
 st.set_page_config(layout="wide")
-st.title("📊 Dashboard de Anúncios GGE (v2.2 - KPIs)")
+st.title("📊 Dashboard de Anúncios GGE (v2.3 - Formatação BR)")
+
+# Define a localidade para Português do Brasil para formatação de moeda e números
+try:
+    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+except locale.Error:
+    # Em alguns ambientes (como o Streamlit Cloud), pode ser necessário um fallback
+    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
 
 # --- Conexão e Busca de Dados (com cache) ---
 @st.cache_data
@@ -14,6 +23,9 @@ def fetch_data():
         engine = create_engine(db_url)
         query = 'SELECT * FROM "Anuncios";'
         df = pd.read_sql(query, engine)
+        # Garante que as colunas numéricas são do tipo correto
+        df['preco_venda'] = pd.to_numeric(df['preco_venda'], errors='coerce')
+        df['quantidade_estoque'] = pd.to_numeric(df['quantidade_estoque'], errors='coerce')
         return df
     except Exception as e:
         st.error(f"Ocorreu um erro ao buscar os dados: {e}")
@@ -46,32 +58,14 @@ if not df_anuncios_master.empty:
     # --- Seção de KPIs ---
     st.header("Indicadores Chave")
     
-    # Cria 3 colunas para os KPIs
     col1, col2, col3 = st.columns(3)
 
-    # Calcula os valores dos KPIs a partir do dataframe JÁ FILTRADO
     num_anuncios = len(df_filtrado)
     valor_estoque = (df_filtrado['preco_venda'] * df_filtrado['quantidade_estoque']).sum()
     qtd_itens = df_filtrado['quantidade_estoque'].sum()
 
-    # Exibe os KPIs nos cartões
     with col1:
         st.metric(label="Nº de Anúncios Exibidos", value=num_anuncios)
     
     with col2:
-        # Formata o valor como moeda brasileira
-        st.metric(label="Valor Total em Estoque", value=f"R$ {valor_estoque:,.2f}")
-
-    with col3:
-        st.metric(label="Quantidade Total de Itens", value=f"{qtd_itens:,}")
-
-
-    # --- Exibição da Tabela de Dados ---
-    st.write("---") # Adiciona uma linha divisória
-    st.header("Visão Geral dos Anúncios")
-    st.dataframe(df_filtrado)
-
-else:
-    st.warning("Nenhum dado de anúncio foi encontrado na base de dados.")
-
-
+        # Usa locale.currency() para fo
