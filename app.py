@@ -3,7 +3,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 st.set_page_config(layout="wide", page_title="GGE Dashboard", page_icon="📊")
-st.title("📊 Dashboard de Anúncios GGE (v3.5)")
+st.title("📊 Dashboard de Anúncios GGE (v3.6)")
 
 def formatar_brl(valor):
     if pd.isna(valor):
@@ -14,12 +14,6 @@ def formatar_int_br(numero):
     if pd.isna(numero):
         return "0"
     return f"{int(numero):,}".replace(",", ".")
-
-def encontrar_coluna(df, opcoes):
-    for opcao in opcoes:
-        if opcao in df.columns:
-            return opcao
-    return None
 
 try:
     db_url = st.secrets["database_url"]
@@ -34,15 +28,9 @@ uploaded_file = st.sidebar.file_uploader("Selecione arquivo do Mercado Livre", t
 if uploaded_file is not None:
     try:
         st.sidebar.info("Lendo arquivo...")
-        df_upload = pd.read_excel(uploaded_file, sheet_name='Anúncios', skiprows=3)
+        df_upload = pd.read_excel(uploaded_file, sheet_name='Anúncios')
         df_upload = df_upload.dropna(how='all')
-        
-        col_item_id = encontrar_coluna(df_upload, ['ITEM_ID', 'Item ID', 'item_id', 'ID'])
-        if col_item_id is None:
-            st.sidebar.error("Nao foi encontrada coluna ITEM_ID no arquivo")
-            st.stop()
-        
-        df_upload = df_upload[df_upload[col_item_id].notna()]
+        df_upload = df_upload[df_upload['ITEM_ID'].notna()]
         
         num_linhas = len(df_upload)
         st.sidebar.info(f"{num_linhas} linhas lidas")
@@ -50,24 +38,15 @@ if uploaded_file is not None:
         if st.sidebar.button("Enviar para o Banco de Dados"):
             with st.spinner("Enviando dados..."):
                 df_processado = pd.DataFrame()
-                
-                col_product = encontrar_coluna(df_upload, ['PRODUCT_NUMBER', 'Product Number', 'product_number', 'SKU'])
-                col_title = encontrar_coluna(df_upload, ['TITLE', 'Title', 'title', 'TITULO'])
-                col_price = encontrar_coluna(df_upload, ['PRICE', 'Price', 'price', 'PRECO'])
-                col_status = encontrar_coluna(df_upload, ['STATUS', 'Status', 'status'])
-                col_listing = encontrar_coluna(df_upload, ['LISTING_TYPE', 'Listing Type', 'listing_type', 'TIPO'])
-                col_fee = encontrar_coluna(df_upload, ['FEE_PER_SALE', 'Fee Per Sale', 'fee_per_sale'])
-                col_quantity = encontrar_coluna(df_upload, ['QUANTITY', 'Quantity', 'quantity', 'ESTOQUE'])
-                
-                df_processado['id_anuncio'] = df_upload[col_item_id]
+                df_processado['id_anuncio'] = df_upload['ITEM_ID']
                 df_processado['id_conta'] = 312056139
-                df_processado['sku'] = df_upload[col_product] if col_product else ""
-                df_processado['titulo'] = df_upload[col_title] if col_title else ""
-                df_processado['preco_venda'] = df_upload[col_price] if col_price else 0
-                df_processado['status'] = df_upload[col_status].str.lower() if col_status else "active"
-                df_processado['tipo_anuncio'] = df_upload[col_listing].str.lower() if col_listing else "classic"
-                df_processado['custo_envio'] = df_upload[col_fee] if col_fee else 0
-                df_processado['quantidade_estoque'] = df_upload[col_quantity] if col_quantity else 0
+                df_processado['sku'] = df_upload['PRODUCT_NUMBER']
+                df_processado['titulo'] = df_upload['TITLE']
+                df_processado['preco_venda'] = df_upload['PRICE']
+                df_processado['status'] = df_upload['STATUS'].str.lower()
+                df_processado['tipo_anuncio'] = df_upload['LISTING_TYPE'].str.lower()
+                df_processado['custo_envio'] = df_upload['FEE_PER_SALE']
+                df_processado['quantidade_estoque'] = df_upload['QUANTITY']
                 df_processado['vendas_totais'] = 0
                 df_processado['data_criacao'] = pd.Timestamp.now()
                 df_processado['ultima_atualizacao'] = pd.Timestamp.now()
