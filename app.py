@@ -1,19 +1,21 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
-import locale # Importa a biblioteca de localização
 
-# --- Configurações da Página e Localização ---
+# --- Configurações da Página ---
 st.set_page_config(layout="wide")
-st.title("📊 Dashboard de Anúncios GGE (v2.3 - Formatação BR)")
+st.title("📊 Dashboard de Anúncios GGE (v2.4 - Gráficos)")
 
-# Define a localidade para Português do Brasil para formatação de moeda e números
-try:
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-except locale.Error:
-    # Em alguns ambientes (como o Streamlit Cloud), pode ser necessário um fallback
-    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+# --- Funções Auxiliares ---
 
+# Função para formatar números no padrão brasileiro (substitui a biblioteca locale)
+def formatar_brl(valor):
+    """Formata um número como moeda brasileira (R$ 1.234,56)."""
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+def formatar_int_br(numero):
+    """Formata um número inteiro com separador de milhar brasileiro (1.234)."""
+    return f"{int(numero):,}".replace(",", ".")
 
 # --- Conexão e Busca de Dados (com cache) ---
 @st.cache_data
@@ -23,9 +25,8 @@ def fetch_data():
         engine = create_engine(db_url)
         query = 'SELECT * FROM "Anuncios";'
         df = pd.read_sql(query, engine)
-        # Garante que as colunas numéricas são do tipo correto
-        df['preco_venda'] = pd.to_numeric(df['preco_venda'], errors='coerce')
-        df['quantidade_estoque'] = pd.to_numeric(df['quantidade_estoque'], errors='coerce')
+        df['preco_venda'] = pd.to_numeric(df['preco_venda'], errors='coerce').fillna(0)
+        df['quantidade_estoque'] = pd.to_numeric(df['quantidade_estoque'], errors='coerce').fillna(0)
         return df
     except Exception as e:
         st.error(f"Ocorreu um erro ao buscar os dados: {e}")
@@ -65,16 +66,37 @@ if not df_anuncios_master.empty:
     qtd_itens = df_filtrado['quantidade_estoque'].sum()
 
     with col1:
-        st.metric(label="Nº de Anúncios Exibidos", value=num_anuncios)
+        st.metric(label="Nº de Anúncios Exibidos", value=formatar_int_br(num_anuncios))
     
     with col2:
-        # Usa locale.currency() para formatar corretamente para R$
-        st.metric(label="Valor Total em Estoque", value=locale.currency(valor_estoque, grouping=True))
+        st.metric(label="Valor Total em Estoque", value=formatar_brl(valor_estoque))
 
     with col3:
-        # Usa locale.format_string() para formatar números inteiros
-        st.metric(label="Quantidade Total de Itens", value=locale.format_string("%d", int(qtd_itens), grouping=True))
+        st.metric(label="Quantidade Total de Itens", value=formatar_int_br(qtd_itens))
 
+    # --- Seção de Gráficos ---
+    st.write("---")
+    st.header("Análises Visuais")
+
+    col_graf1, col_graf2 = st.columns(2)
+
+    with col_graf1:
+        st.subheader("Proporção por Tipo de Anúncio")
+        # Agrupa os dados e conta a ocorrência de cada tipo de anúncio
+        df_tipo = df_filtrado['tipo_anuncio'].value_counts().reset_index()
+        df_tipo.columns = ['tipo_anuncio', 'contagem']
+        
+        # Usa o próprio Streamlit para criar o gráfico de pizza
+        st.bar_chart(df_tipo, x='tipo_anuncio', y='contagem')
+        # st.altair_chart(c, use_container_width=True) # (Alternativa para gráfico de rosca)
+
+    with col_graf2:
+        st.subheader("Top 5 Produtos por Estoque")
+        # Ordena o dataframe pela quantidade de estoque e pega os 5 maiores
+        df_top_estoque = df_filtrado.sort_values('quantidade_estoque', ascending=False).head(5)
+        
+        # Usa o Streamlit para criar o gráfico de barras
+        st.bar_chart(df_top_estoque, x='sku', y='quantidade_estoque')
 
     # --- Exibição da Tabela de Dados ---
     st.write("---") 
